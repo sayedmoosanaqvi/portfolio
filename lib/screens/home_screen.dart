@@ -1,11 +1,13 @@
 import 'dart:convert';
-import 'dart:io'; // Crucial for reading local image files
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:portfolio/models/project_model.dart'; 
 import 'package:portfolio/screens/project_details_screen.dart';
 import 'package:portfolio/screens/add_project_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:portfolio/theme/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } else {
       setState(() {
+        // Assuming portfolioProjects is your fallback dummy data
         displayProjects = List.from(portfolioProjects);
       });
     }
@@ -54,91 +57,208 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _launchUrlAndClose(String urlString) {
+    _launchUrl(urlString);
+    Navigator.pop(context);
+  }
+
+  Widget _buildDrawerItem(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: ListTile(
+        leading: Icon(icon, color: theme.colorScheme.primary),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        hoverColor: theme.colorScheme.primary.withOpacity(0.05),
+        splashColor: theme.colorScheme.primary.withOpacity(0.1),
+        onTap: onTap,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     final filteredProjects = selectedCategory == 'All'
         ? displayProjects
         : displayProjects.where((project) => project.category == selectedCategory).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Moosa Raza - Developer Portfolio'),
-        centerTitle: true,
-        elevation: 0,
+        title: Text(
+          'Moosa Raza',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        centerTitle: false,
+        actions: [
+          // Quick Theme Toggle
+          IconButton(
+            icon: Icon(
+              themeProvider.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: theme.colorScheme.primary,
+            ),
+            tooltip: 'Toggle Theme',
+            onPressed: () {
+              themeProvider.toggleTheme();
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.refresh_rounded, color: theme.colorScheme.primary),
+            tooltip: 'Refresh Showcase',
+            onPressed: _loadProjects,
+          ),
+        ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
+        width: MediaQuery.of(context).size.width * 0.75, // Slightly slimmer, modern width
+        child: Column(
           children: [
-            UserAccountsDrawerHeader(
-              accountName: const Text(
-                "Moosa Raza",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              accountEmail: const Text("Full-Stack Developer & 3D Specialist"),
-              currentAccountPicture: GestureDetector(
-                // --- SECRET ADMIN TRIGGER ---
-                onLongPress: () async {
-                  Navigator.pop(context); // Close drawer
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AddProjectScreen()),
-                  );
-                  if (result == true) {
-                    _loadProjects(); // Refresh gallery on save
-                  }
-                },
-                child:CircleAvatar(
-  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-  backgroundImage: const AssetImage('assets/images/profile.jpg'),
-),
-              ),
+            // Custom Airy Header
+            Container(
+              padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 24),
+              width: double.infinity,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                color: theme.colorScheme.primary.withOpacity(0.05), // Very subtle primary tint
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onLongPress: () async {
+                      Navigator.pop(context);
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddProjectScreen()),
+                      );
+                      if (result == true) {
+                        _loadProjects();
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4), // Space for the ring
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3), 
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 36,
+                        backgroundColor: theme.colorScheme.surface,
+                        backgroundImage: const AssetImage('assets/images/profile.jpg'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Moosa Raza",
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Full-Stack Developer\n& 3D Specialist",
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.work),
-              title: const Text('Hire me on Fiverr'),
-              onTap: () {
-                _launchUrl('https://www.fiverr.com/');
-                Navigator.pop(context);
-              },
+            
+            // Drawer Menu Items
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                children: [
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.work_outline_rounded,
+                    title: 'Hire me on Fiverr',
+                    onTap: () => _launchUrlAndClose('https://www.fiverr.com/'),
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.code_rounded,
+                    title: 'GitHub Projects',
+                    onTap: () => _launchUrlAndClose('https://github.com/sayedmoosanaqvi'),
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.link_rounded,
+                    title: 'LinkedIn Profile',
+                    onTap: () => _launchUrlAndClose('https://www.linkedin.com/in/moosa-naqvi/'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                    child: Divider(color: Colors.grey.withOpacity(0.1)),
+                  ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.email_outlined,
+                    title: 'Contact Me',
+                    onTap: () => _launchUrlAndClose('mailto:sayedmoosanaqvi@gmail.com?subject=Portfolio%20Inquiry'),
+                  ),
+                ],
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.code),
-              title: const Text('GitHub Projects'),
-              onTap: () {
-                _launchUrl('https://github.com/sayedmoosanaqvi');
-                Navigator.pop(context);
-              },
+            
+            // Clean Footer
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Text(
+                "© 2026 Moosa Raza",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.4),
+                ),
+              ),
             ),
-            ListTile(
-              leading: const Icon(Icons.link),
-              title: const Text('LinkedIn Profile'),
-              onTap: () {
-                _launchUrl('https://www.linkedin.com/in/moosa-naqvi/');
-                Navigator.pop(context);
-              },
-            ),
-            const Divider(),
-            ListTile(
-  leading: const Icon(Icons.email),
-  title: const Text('Contact Me'),
-  onTap: () {
-    _launchUrl('mailto:sayedmoosanaqvi@gmail.com?subject=Portfolio%20Inquiry&body=Hi%20Moosa,%0A%0A');
-    Navigator.pop(context);
-  },
-)
           ],
         ),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter Chips
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 4.0),
+            child: Text(
+              "My Portfolio",
+              style: TextStyle(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          
+          // Clean Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: categories.map((category) {
                 final isSelected = selectedCategory == category;
@@ -147,6 +267,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: FilterChip(
                     label: Text(category),
                     selected: isSelected,
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    backgroundColor: theme.colorScheme.surface,
+                    selectedColor: theme.colorScheme.primary.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected ? theme.colorScheme.primary : Colors.grey.withOpacity(0.2),
+                      ),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isSelected ? theme.colorScheme.primary : theme.textTheme.bodyMedium?.color,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    ),
                     onSelected: (bool selected) {
                       setState(() {
                         selectedCategory = category;
@@ -158,41 +292,37 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Main Project Grid
+          // Clean Vertical Feed
           Expanded(
             child: filteredProjects.isEmpty
                 ? const Center(child: Text('No projects found in this category.'))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.8,
-                    ),
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     itemCount: filteredProjects.length,
                     itemBuilder: (context, index) {
                       final project = filteredProjects[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ProjectDetailScreen(project: project),
-                            ),
-                          );
-                        },
-                        child: Card(
-                          clipBehavior: Clip.antiAlias,
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                      
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 20.0),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () async {
+                            final refresh = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProjectDetailScreen(project: project),
+                              ),
+                            );
+                            if (refresh == true) {
+                              _loadProjects();
+                            }
+                          },
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Image section supporting both local files & assets
-                              Expanded(
+                              // Top Image Banner
+                              AspectRatio(
+                                aspectRatio: 16 / 9,
                                 child: Hero(
                                   tag: project.id,
                                   child: project.imagePaths.isNotEmpty
@@ -200,40 +330,61 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ? Image.asset(
                                               project.imagePaths.first,
                                               fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => Container(
-                                                color: Colors.grey.shade800,
-                                                child: const Icon(Icons.code, color: Colors.white54),
-                                              ),
                                             )
                                           : Image.file(
                                               File(project.imagePaths.first),
                                               fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) => Container(
-                                                color: Colors.grey.shade800,
-                                                child: const Icon(Icons.code, color: Colors.white54),
-                                              ),
                                             ))
                                       : Container(
-                                          color: Colors.grey.shade800,
-                                          child: const Icon(Icons.code, color: Colors.white54),
+                                          color: theme.colorScheme.surface,
+                                          child: const Icon(Icons.image, color: Colors.grey),
                                         ),
                                 ),
                               ),
+                              
+                              // Card Content
                               Padding(
-                                padding: const EdgeInsets.all(12.0),
+                                padding: const EdgeInsets.all(16.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          project.category.toUpperCase(),
+                                          style: TextStyle(
+                                            color: theme.colorScheme.secondary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 16,
+                                          color: Colors.grey.withOpacity(0.5),
+                                        )
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
                                     Text(
                                       project.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      style: theme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 8),
                                     Text(
-                                      project.category,
-                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                      project.description,
+                                      style: TextStyle(
+                                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),

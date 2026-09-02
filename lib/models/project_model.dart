@@ -98,4 +98,14 @@ final List<ProjectModel> portfolioProjects = [
     liveLink: 'https://speakeval-2a29e.firebaseapp.com/',
     toolsUsed: ['Flutter', 'Firebase'],
   ),
+  ProjectModel(
+    id: 'penguin_store_web',
+    title: 'Penguin Store',
+    description: 'A modern, responsive e-commerce platform featuring a clean Material 3 design. Fully built with Flutter and hosted live on GitHub Pages.',
+    category: 'Web Application',
+    imagePaths: ['assets/images/penguin_store.png'], // We will set up this image in the next stage
+    githubLink: 'https://github.com/sayedmoosanaqvi/Penguin_Store',
+    liveLink: 'https://sayedmoosanaqvi.github.io/Penguin_Store/',
+    toolsUsed: ['Flutter Web', 'Material 3', 'GitHub Pages'],
+  ),
 ];

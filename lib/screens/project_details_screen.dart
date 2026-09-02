@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'dart:io'; // Required for displaying local device images
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'package:portfolio/models/project_model.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:portfolio/screens/add_project_screen.dart'; // Required for editing
+import 'package:portfolio/screens/add_project_screen.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final ProjectModel project;
@@ -23,7 +23,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.project.videoPath != null) {
+    if (widget.project.videoPath != null && widget.project.videoPath!.isNotEmpty) {
       _videoController = VideoPlayerController.asset(widget.project.videoPath!)
         ..initialize().then((_) {
           setState(() {});
@@ -44,7 +44,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
-  // Helper method to remove project from local storage
   Future<void> _deleteProject() async {
     final prefs = await SharedPreferences.getInstance();
     final String? projectsJson = prefs.getString('saved_projects');
@@ -54,24 +53,24 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       List<ProjectModel> currentProjects =
           decoded.map((item) => ProjectModel.fromJson(item)).toList();
 
-      // Remove item matching this project's ID
       currentProjects.removeWhere((item) => item.id == widget.project.id);
 
-      // Re-encode and update storage
       final String encodedData =
           jsonEncode(currentProjects.map((p) => p.toJson()).toList());
       await prefs.setString('saved_projects', encodedData);
 
       if (mounted) {
-        Navigator.pop(context, true); // Pop screen and trigger home refresh
+        Navigator.pop(context, true);
       }
     }
   }
 
   void _confirmDelete() {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Project?'),
         content: Text('Are you sure you want to remove "${widget.project.title}" from your portfolio?'),
         actions: [
@@ -79,12 +78,15 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          FilledButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _deleteProject();
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onPrimary,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -94,16 +96,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.project.title),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         actions: [
-          // Edit Button
           IconButton(
-            icon: const Icon(Icons.edit, color: Colors.blueAccent),
+            icon: Icon(Icons.edit_outlined, color: theme.colorScheme.secondary),
             tooltip: 'Edit Project',
             onPressed: () async {
-              // Navigate to the edit screen, passing the current project
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -111,28 +115,33 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 ),
               );
               
-              // If the project was updated, return true to the Home Screen so it refreshes
               if (result == true && mounted) {
-                Navigator.pop(context, true); 
+                Navigator.pop(context, true);
               }
             },
           ),
-          // Delete Button
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            icon: Icon(Icons.delete_outline_rounded, color: theme.colorScheme.error),
             tooltip: 'Delete Project',
             onPressed: _confirmDelete,
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Preview supporting both asset paths and device file paths
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+            // Main Banner Preview Image
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Hero(
@@ -143,160 +152,203 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                               widget.project.imagePaths.first,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
-                                color: Colors.grey.shade800,
-                                child: const Icon(Icons.image, size: 50, color: Colors.white54),
+                                color: theme.colorScheme.surface,
+                                child: const Icon(Icons.image, size: 50, color: Colors.grey),
                               ),
                             )
                           : Image.file(
                               File(widget.project.imagePaths.first),
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
-                                color: Colors.grey.shade800,
-                                child: const Icon(Icons.image, size: 50, color: Colors.white54),
+                                color: theme.colorScheme.surface,
+                                child: const Icon(Icons.image, size: 50, color: Colors.grey),
                               ),
                             ))
-                      : Container(color: Colors.grey.shade800),
+                      : Container(color: theme.colorScheme.surface),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Category & Title
-            Text(
-              widget.project.category,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
+            // Category Badge & Title
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                widget.project.category.toUpperCase(),
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               widget.project.title,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 12),
 
             // Description
             Text(
               widget.project.description,
-              style: const TextStyle(fontSize: 16, height: 1.4),
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.6,
+                color: theme.textTheme.bodyMedium?.color,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Tools Used Tags
-            const Text(
-              "Tools & Technologies",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // Tools Used Section
+            Text(
+              "Technologies Used",
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8.0,
+              runSpacing: 8.0,
               children: widget.project.toolsUsed
                   .map((tool) => Chip(
                         label: Text(tool),
-                        backgroundColor:
-                            Theme.of(context).colorScheme.primaryContainer,
+                        backgroundColor: theme.colorScheme.surface,
+                        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ))
                   .toList(),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // Action Buttons for GitHub / Live Demo Links
-            if (widget.project.githubLink != null ||
-                widget.project.liveLink != null) ...[
+            // Link Action Buttons
+            if (widget.project.githubLink != null || widget.project.liveLink != null) ...[
               Row(
                 children: [
                   if (widget.project.githubLink != null)
                     Expanded(
-                      child: ElevatedButton.icon(
+                      child: OutlinedButton.icon(
                         onPressed: () => _launchUrl(widget.project.githubLink!),
-                        icon: const Icon(Icons.code),
-                        label: const Text('View Code'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        icon: const Icon(Icons.code_rounded),
+                        label: const Text('View Source'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.primary,
+                          side: BorderSide(color: theme.colorScheme.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30), // Match new pill theme
+                          ),
                         ),
                       ),
                     ),
-                  if (widget.project.githubLink != null &&
-                      widget.project.liveLink != null)
+                  if (widget.project.githubLink != null && widget.project.liveLink != null)
                     const SizedBox(width: 12),
                   if (widget.project.liveLink != null)
                     Expanded(
-                      child: FilledButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () => _launchUrl(widget.project.liveLink!),
-                        icon: const Icon(Icons.open_in_new),
+                        icon: const Icon(Icons.open_in_new_rounded),
                         label: const Text('Live Demo'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                        // Leverages the global ElevatedButtonTheme automatically
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
             ],
 
-            // 3D Model Viewer Section
-            if (widget.project.modelPath != null) ...[
-              const Text(
-                "Interactive 3D View",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // 2026 Modern 3D Model Interactive Card
+            if (widget.project.modelPath != null && widget.project.modelPath!.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.view_in_ar_rounded, color: theme.colorScheme.secondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Interactive 3D Experience",
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
-              const Text(
-                "Drag to rotate, pinch to zoom",
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+              Text(
+                "Touch and drag to rotate the model in 360° space",
+                style: TextStyle(color: theme.textTheme.bodySmall?.color, fontSize: 12),
               ),
               const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  height: 300,
-                  child: ModelViewer(
-                    src: widget.project.modelPath!,
-                    alt: "A 3D model of ${widget.project.title}",
-                    ar: true,
-                    autoRotate: true,
-                    cameraControls: true,
-                    backgroundColor: Colors.black12,
-                  ),
+              Container(
+                height: 320,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ModelViewer(
+                  src: widget.project.modelPath!,
+                  alt: "A 3D model of ${widget.project.title}",
+                  ar: true,
+                  autoRotate: true,
+                  cameraControls: true,
+                  backgroundColor: Colors.transparent,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
             ],
 
-            // Video Demo Section
-            if (widget.project.videoPath != null) ...[
-              const Text(
-                "Demo Video",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // 2026 Video Demo Player Showcase
+            if (widget.project.videoPath != null && widget.project.videoPath!.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(Icons.play_circle_fill_rounded, color: theme.colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Video Showcase",
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: AspectRatio(
                   aspectRatio: _videoController?.value.isInitialized == true
                       ? _videoController!.value.aspectRatio
                       : 16 / 9,
-                  child: _videoController != null &&
-                          _videoController!.value.isInitialized
+                  child: _videoController != null && _videoController!.value.isInitialized
                       ? Stack(
                           alignment: Alignment.bottomCenter,
                           children: [
                             VideoPlayer(_videoController!),
-                            VideoProgressIndicator(_videoController!,
-                                allowScrubbing: true),
+                            VideoProgressIndicator(
+                              _videoController!,
+                              allowScrubbing: true,
+                              colors: VideoProgressColors(
+                                playedColor: theme.colorScheme.secondary,
+                              ),
+                            ),
                             Center(
                               child: IconButton(
-                                iconSize: 50,
+                                iconSize: 56,
                                 icon: Icon(
                                   _videoController!.value.isPlaying
-                                      ? Icons.pause_circle
-                                      : Icons.play_circle,
-                                  color: Colors.white,
+                                      ? Icons.pause_circle_filled_rounded
+                                      : Icons.play_circle_fill_rounded,
+                                  color: Colors.white.withOpacity(0.9),
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -310,12 +362,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                           ],
                         )
                       : Container(
-                          color: Colors.black26,
-                          child: const Center(
-                              child: CircularProgressIndicator()),
+                          color: theme.colorScheme.surface,
+                          child: const Center(child: CircularProgressIndicator()),
                         ),
                 ),
               ),
+              const SizedBox(height: 28),
             ],
           ],
         ),

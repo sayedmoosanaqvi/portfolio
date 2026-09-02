@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:portfolio/models/project_model.dart';
 
 class AddProjectScreen extends StatefulWidget {
-  final ProjectModel? existingProject; // Optional parameter for editing
+  final ProjectModel? existingProject;
 
   const AddProjectScreen({super.key, this.existingProject});
 
@@ -24,6 +24,9 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
   late TextEditingController _liveLinkController;
   late TextEditingController _toolsController;
   
+  late TextEditingController _videoPathController;
+  late TextEditingController _modelPathController;
+  
   String? _savedImagePath;
   String _selectedCategory = 'Mobile Application';
   
@@ -36,13 +39,16 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill data if editing an existing project
     final project = widget.existingProject;
+    
     _titleController = TextEditingController(text: project?.title ?? '');
     _descriptionController = TextEditingController(text: project?.description ?? '');
     _githubController = TextEditingController(text: project?.githubLink ?? '');
     _liveLinkController = TextEditingController(text: project?.liveLink ?? '');
     _toolsController = TextEditingController(text: project?.toolsUsed.join(', ') ?? '');
+    
+    _videoPathController = TextEditingController(text: project?.videoPath ?? '');
+    _modelPathController = TextEditingController(text: project?.modelPath ?? '');
     
     if (project != null) {
       _selectedCategory = project.category;
@@ -72,7 +78,6 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
   Future<void> _saveProject() async {
     if (_formKey.currentState!.validate()) {
       
-      // Keep existing placeholder if no image was selected and no old image exists
       List<String> imageList = ['assets/images/placeholder.png'];
       if (_savedImagePath != null) {
         imageList = [_savedImagePath!];
@@ -80,7 +85,6 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
         imageList = widget.existingProject!.imagePaths;
       }
 
-      // If editing, keep the same ID. If new, generate a new ID.
       final String projectId = widget.existingProject?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
       final updatedProject = ProjectModel(
@@ -91,6 +95,8 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
         imagePaths: imageList, 
         githubLink: _githubController.text.isNotEmpty ? _githubController.text.trim() : null,
         liveLink: _liveLinkController.text.isNotEmpty ? _liveLinkController.text.trim() : null,
+        videoPath: _videoPathController.text.isNotEmpty ? _videoPathController.text.trim() : null,
+        modelPath: _modelPathController.text.isNotEmpty ? _modelPathController.text.trim() : null,
         toolsUsed: _toolsController.text.split(',').map((e) => e.trim()).toList(),
       );
       
@@ -102,10 +108,10 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
         final List<dynamic> decoded = jsonDecode(projectsJson);
         currentProjects = decoded.map((item) => ProjectModel.fromJson(item)).toList();
       } else {
-        currentProjects = List.from(portfolioProjects); // fallback data
+        // Assuming portfolioProjects is globally accessible
+        // currentProjects = List.from(portfolioProjects); 
       }
 
-      // Remove the old version if it exists, then add the updated version
       currentProjects.removeWhere((item) => item.id == projectId);
       currentProjects.add(updatedProject);
 
@@ -113,7 +119,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
       await prefs.setString('saved_projects', encodedData);
 
       if (mounted) {
-        Navigator.pop(context, true); // Pop and signal a refresh
+        Navigator.pop(context, true); 
       }
     }
   }
@@ -125,12 +131,15 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
     _githubController.dispose();
     _liveLinkController.dispose();
     _toolsController.dispose();
+    _videoPathController.dispose();
+    _modelPathController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingProject != null;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -147,8 +156,9 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
               child: Container(
                 height: 150,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                  color: theme.inputDecorationTheme.fillColor, // Inherits the theme's input background
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
                   image: _savedImagePath != null
                       ? DecorationImage(
                           image: FileImage(File(_savedImagePath!)),
@@ -164,12 +174,15 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
                 ),
                 child: _savedImagePath == null && 
                        (widget.existingProject == null || widget.existingProject!.imagePaths.first == 'assets/images/placeholder.png')
-                    ? const Column(
+                    ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_photo_alternate, size: 50),
-                          SizedBox(height: 8),
-                          Text('Tap to update App Cover Image')
+                          Icon(Icons.add_photo_alternate, size: 50, color: theme.colorScheme.primary),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tap to update App Cover Image',
+                            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                          )
                         ],
                       )
                     : null,
@@ -178,45 +191,69 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
             const SizedBox(height: 24),
             TextFormField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'App Title', border: OutlineInputBorder()),
+              // Stripped hardcoded borders so it uses your global InputDecorationTheme
+              decoration: const InputDecoration(labelText: 'App Title'),
               validator: (value) => value == null || value.isEmpty ? 'Please enter a title' : null,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: _selectedCategory,
-              decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Category'),
               items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
               onChanged: (value) => setState(() => _selectedCategory = value!),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Description'),
               maxLines: 3,
               validator: (value) => value == null || value.isEmpty ? 'Please enter a description' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _toolsController,
-              decoration: const InputDecoration(labelText: 'Tools Used (comma separated)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Tools Used (comma separated)'),
               validator: (value) => value == null || value.isEmpty ? 'Please list at least one tool' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _githubController,
-              decoration: const InputDecoration(labelText: 'GitHub Link (Optional)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'GitHub Link (Optional)'),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _liveLinkController,
-              decoration: const InputDecoration(labelText: 'Live Demo Link (Optional)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Live Demo Link (Optional)'),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _videoPathController,
+              decoration: const InputDecoration(
+                labelText: 'Video Asset Path (Optional)', 
+                hintText: 'e.g., assets/videos/Headset.mp4',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _modelPathController,
+              decoration: const InputDecoration(
+                labelText: '3D Model Asset Path (Optional)', 
+                hintText: 'e.g., assets/models/headset.glb',
+              ),
             ),
             const SizedBox(height: 32),
-            FilledButton(
+            // Replaced with ElevatedButton to trigger global custom button theme
+            ElevatedButton(
               onPressed: _saveProject,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-              child: Text(isEditing ? 'Update Project' : 'Save to Portfolio', style: const TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(56), // Gives the button a nice full width
+              ),
+              child: Text(
+                isEditing ? 'Update Project' : 'Save to Portfolio',
+                style: const TextStyle(fontSize: 16),
+              ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
